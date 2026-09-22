@@ -25,7 +25,8 @@ The skill guides an agent through the complete research workflow:
 │   ├── preprocessing.md             Normalization and identifier alignment
 │   └── prognoser-api.md             Full API and output schema
 └── scripts/
-    └── run_prognoser.R              Reproducible execution template
+    ├── run_prognoser.R              Reproducible execution template
+    └── example_prognoser.R          Self-contained two-cohort demo
 ```
 
 ## Installation
@@ -44,6 +45,25 @@ https://github.com/FangZY-Lab/Prognoser-Skill
 
 The skill is selected automatically when a request involves multi-cohort or
 multi-endpoint prognostic signature discovery with Prognoser.
+
+## Minimal two-cohort example
+
+Run the bundled example to verify the environment and data contract:
+
+```bash
+Rscript scripts/example_prognoser.R
+```
+
+It simulates two datasets, `SimDataA` and `SimDataB`, each with `OS`, `RFS`,
+`PFS`, and `DFS` endpoints. The script plants `GENE1-10` as risk genes and
+`GENE11-20` as protective genes, then returns `HRGS` and `LRGS` signatures:
+
+```r
+datasets <- c(
+  "SimDataA_OS", "SimDataA_RFS", "SimDataA_PFS", "SimDataA_DFS",
+  "SimDataB_OS", "SimDataB_RFS", "SimDataB_PFS", "SimDataB_DFS"
+)
+```
 
 ## What the skill enforces
 

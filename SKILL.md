@@ -105,6 +105,8 @@ result <- Prognoser(
 Full API details and the output schema are in
 [references/prognoser-api.md](references/prognoser-api.md). Use
 [scripts/run_prognoser.R](scripts/run_prognoser.R) as a reproducible template.
+For a self-contained two-cohort example, run
+[scripts/example_prognoser.R](scripts/example_prognoser.R).
 
 ### 5. Export results
 
