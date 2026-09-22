@@ -23,10 +23,12 @@ The skill guides an agent through the complete research workflow:
 ├── references/
 │   ├── data-acquisition.md          Public data download and endpoints
 │   ├── preprocessing.md             Normalization and identifier alignment
-│   └── prognoser-api.md             Full API and output schema
+│   ├── prognoser-api.md             Full API and output schema
+│   └── real-data.md                 Validated real colorectal cohorts
 └── scripts/
     ├── run_prognoser.R              Reproducible execution template
-    └── example_prognoser.R          Self-contained two-cohort demo
+    ├── example_prognoser.R          Self-contained two-cohort demo
+    └── download_real_data.R         Download two real CRC cohorts
 ```
 
 ## Installation
@@ -64,6 +66,25 @@ datasets <- c(
   "SimDataB_OS", "SimDataB_RFS", "SimDataB_PFS", "SimDataB_DFS"
 )
 ```
+
+## Real data support
+
+The skill is validated against two public colorectal cancer cohorts:
+
+| Dataset | Samples | Endpoints |
+| --- | --- | --- |
+| GSE39582 | 566 | OS, RFS |
+| GSE17536 | 177 | OS, DFS, DSS |
+
+Download and format them with:
+
+```bash
+Rscript scripts/download_real_data.R
+```
+
+This writes Prognoser-compatible `.Rdata` objects such as `GSE39582_OS`,
+`GSE39582_OS_survival`, and `GSE17536_OS`. Load them into the global
+environment, then run `Prognoser()` on both cohorts.
 
 ## What the skill enforces
 

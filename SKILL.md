@@ -60,6 +60,15 @@ Prefer public, documented sources:
 Read [references/data-acquisition.md](references/data-acquisition.md) before
 downloading or assembling survival endpoints.
 
+The skill ships with two validated real colorectal cohorts documented in
+[references/real-data.md](references/real-data.md):
+
+- GSE39582: 566 samples, OS and RFS.
+- GSE17536: 177 samples, OS, DFS, and DSS.
+
+Run [scripts/download_real_data.R](scripts/download_real_data.R) to reproduce
+the download and format real data for `Prognoser()`.
+
 ### 2. Normalize and align
 
 - Genes in rows, samples in columns.
