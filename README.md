@@ -13,6 +13,8 @@ The skill guides an agent through the complete research workflow:
 4. **Prognoser execution** with the required global-environment naming
    contract.
 5. **Result export** as RDS objects and GMT-compatible gene-set files.
+6. **Downstream cell-state characterisation** of the resulting signature.
+7. **Downstream tumour-microenvironment analysis** of the same cohorts.
 
 ## Repository layout
 
@@ -24,11 +26,20 @@ The skill guides an agent through the complete research workflow:
 │   ├── data-acquisition.md          Public data download and endpoints
 │   ├── preprocessing.md             Normalization and identifier alignment
 │   ├── prognoser-api.md             Full API and output schema
-│   └── real-data.md                 Validated real colorectal cohorts
+│   ├── real-data.md                 Validated real colorectal cohorts
+│   ├── cell-state-analysis.md       Downstream: cell-state panels and scoring
+│   ├── tme-analysis.md              Downstream: ESTIMATE, xCell, markers
+│   └── downstream-statistics.md     Shared scoring and statistics contract
 └── scripts/
     ├── run_prognoser.R              Reproducible execution template
     ├── example_prognoser.R          Self-contained two-cohort demo
-    └── download_real_data.R         Download two real CRC cohorts
+    ├── download_real_data.R         Download two real CRC cohorts
+    ├── downstream_lib.R             Shared downstream helpers
+    ├── downstream_signatures.R      Panel registry (cell state + TME markers)
+    ├── downstream_cell_states.R     Downstream module 1: cell states
+    ├── downstream_tme.R             Downstream module 2: microenvironment
+    ├── run_downstream.R             Both modules plus a Markdown report
+    └── example_downstream.R         Self-contained downstream demo
 ```
 
 ## Installation
@@ -86,6 +97,70 @@ This writes Prognoser-compatible `.Rdata` objects such as `GSE39582_OS`,
 `GSE39582_OS_survival`, and `GSE17536_OS`. Load them into the global
 environment, then run `Prognoser()` on both cohorts.
 
+## Downstream analysis
+
+Once `HRGS*` and `LRGS*` signatures exist, two downstream modules characterise
+them on the same cohorts. Both accept the result object from `Prognoser()` and
+the same `<Dataset>_<Endpoint>` inputs, so nothing is downloaded twice.
+
+```bash
+# cell states and the tumour microenvironment, plus a Markdown report
+Rscript scripts/run_downstream.R \
+  --input=output/objects \
+  --result=output/prognoser_result.rds \
+  --output=output/downstream
+```
+
+**Cell states** ([references/cell-state-analysis.md](references/cell-state-analysis.md)).
+Thirteen panels — EMT, proliferation, hypoxia, glycolysis, OXPHOS,
+angiogenesis, apoptosis, DNA repair, senescence, TGF-beta, IFN-gamma,
+inflammation and a stemness proxy — are resolved from MSigDB at run time via
+`msigdbr` (no hard-coded gene lists), scored with ssGSEA, then tested against
+the signature score and against survival.
+
+**Tumour microenvironment** ([references/tme-analysis.md](references/tme-analysis.md)).
+ESTIMATE for stromal/immune content, xCell for 64 cell types, optional quanTIseq
+fractions for ten immune populations, and nine curated marker panels (CD8, Treg,
+M1/M2, MDSC, checkpoints, TLS, CAF, endothelial). An
+`inflamed`/`excluded`/`desert` phenotype call is emitted together with the
+thresholds that produced it.
+
+Both modules follow the scoring and multiple-testing contract in
+[references/downstream-statistics.md](references/downstream-statistics.md):
+BH within each output family, Cox per standard deviation, and explicit
+guardrails for small cohorts.
+
+### Dependencies
+
+Signature discovery needs only CRAN packages (see
+[references/prognoser-api.md](references/prognoser-api.md)). Downstream adds:
+
+| Tier | Packages | Needed for |
+| --- | --- | --- |
+| Required | `msigdbr`, `GSVA`, `survival` | Panel resolution, ssGSEA, survival models |
+| Recommended | `estimate`, `xCell` | Bulk TME scores and cell types |
+| Optional | `quantiseqr` | Immune fractions (TPM input only) |
+| Optional | `pheatmap`, `ggplot2` | Figures; analyses run without them |
+
+```r
+install.packages(c("msigdbr", "estimate"))
+if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+BiocManager::install(c("GSVA", "xCell", "quantiseqr"))
+```
+
+Missing optional packages degrade one view instead of failing the run.
+
+### Verifying an installation
+
+```bash
+Rscript scripts/example_prognoser.R     # signature discovery
+Rscript scripts/example_downstream.R    # downstream, on simulated cohorts
+```
+
+The downstream demo plants a risk axis, an immune axis and a stromal axis, then
+recovers them: the signature score should rise with proliferation and fall with
+CD8 content. If it does not, the environment or the input scale is wrong.
+
 ## What the skill enforces
 
 ### Exact data contract
@@ -119,6 +194,7 @@ result <- Prognoser(
   expression_accession_vector = datasets,
   knowledge_genesets = knowledge_genesets,
   denovo_threshold = 0.05,
+  na_ratio = 0.3,
   gene_threshold = 0.001,
   min_genes = 5,
   similarity_threshold = 0.5,
