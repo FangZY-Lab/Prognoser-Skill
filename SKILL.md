@@ -1,6 +1,6 @@
 ---
 name: prognoser
-description: End-to-end discovery of prognostic gene signatures with the Prognoser R package, including public data download, multi-endpoint survival assembly, expression normalization, and R execution.
+description: End-to-end discovery of prognostic gene signatures with the Prognoser R package, including public data download, multi-endpoint survival assembly, expression normalization, R execution, and downstream cell-state and tumour-microenvironment characterisation of the resulting HRGS/LRGS signatures.
 ---
 
 # Prognoser
@@ -16,6 +16,12 @@ The workflow is:
 3. Normalize and align gene identifiers across cohorts.
 4. Expose data in the exact naming contract `Prognoser` expects.
 5. Run `Prognoser()` and export the resulting signatures.
+6. Characterise the cell states the signature tracks.
+7. Characterise the tumour microenvironment of the same cohorts.
+
+Steps 1-5 are signature discovery. Steps 6-7 are downstream interpretation:
+optional, but they are what turns a gene list into a biological claim. Both
+reuse the objects built in step 4, so no data is downloaded twice.
 
 ## Critical data contract
 
@@ -104,6 +110,7 @@ result <- Prognoser(
   expression_accession_vector = datasets,
   knowledge_genesets = knowledge,
   denovo_threshold = 0.05,
+  na_ratio = 0.3,
   gene_threshold = 0.001,
   min_genes = 5,
   similarity_threshold = 0.5,
@@ -128,13 +135,89 @@ For a self-contained two-cohort example, run
 Save with `saveRDS()` and write gene sets as tab-delimited GMT-compatible text
 when a downstream tool needs them.
 
+### 6. Characterise cell states
+
+Ask which programmes the signature tracks. Thirteen panels (EMT, proliferation,
+hypoxia, glycolysis, OXPHOS, angiogenesis, apoptosis, DNA repair, senescence,
+TGF-beta, IFN-gamma, inflammation, stemness) are resolved from MSigDB through
+`msigdbr`, scored with ssGSEA, and tested against the signature and against
+survival.
+
+```bash
+Rscript scripts/downstream_cell_states.R \
+  --input=output/objects \
+  --result=output/prognoser_result.rds \
+  --output=output/downstream
+```
+
+Read [references/cell-state-analysis.md](references/cell-state-analysis.md)
+before interpreting the correlations: EMT and proliferation are partly purity
+proxies, and ssGSEA scores are not comparable across cohorts.
+
+### 7. Characterise the tumour microenvironment
+
+Score stromal and immune content (ESTIMATE), deconvolve cell types (xCell,
+optionally quanTIseq), and score marker programmes (CD8, Treg, M1/M2, MDSC,
+checkpoints, TLS, CAF, endothelial). An immune phenotype call
+(`inflamed` / `excluded` / `desert`) is produced with its thresholds written to
+disk.
+
+```bash
+Rscript scripts/downstream_tme.R \
+  --input=output/objects \
+  --result=output/prognoser_result.rds \
+  --platform=illumina \
+  --output=output/downstream
+```
+
+Read [references/tme-analysis.md](references/tme-analysis.md) for the
+`platform` and TPM caveats, and
+[references/downstream-statistics.md](references/downstream-statistics.md) for
+the scoring and multiple-testing contract that both downstream steps follow.
+
+To run both steps and write a single Markdown report:
+
+```bash
+Rscript scripts/run_downstream.R \
+  --input=output/objects --result=output/prognoser_result.rds
+```
+
+[scripts/example_downstream.R](scripts/example_downstream.R) is a
+self-contained demo: it simulates two cohorts with a planted risk axis, immune
+axis and stromal axis, then recovers them. Run it to verify an environment
+without touching real data.
+
 ## Guardrails
+
+Signature discovery:
 
 - Do not fabricate survival time or status. If an endpoint is unavailable,
   omit that dataset-endpoint instead of imputing events.
 - Verify sample overlap between expression columns and survival row names;
   report and drop unmatched samples.
+- `knowledge_genesets` has **no default and is the third positional argument**.
+  Always pass it by name; omitting it fails with
+  `argument "knowledge_genesets" is missing`.
 - Keep `linkage` a single character value; the default is a vector and will
   fail if left unset.
 - `meta` may emit non-fatal warnings during meta-analysis; preserve them rather
   than suppressing them unless they flood the log.
+
+Downstream interpretation:
+
+- Never compare absolute ssGSEA scores, cell fractions or ESTIMATE values across
+  cohorts. Compare correlations and hazard ratios instead.
+- ESTIMATE's `platform` selects a gene list, not the assay type. For RNA-seq use
+  `illumina`, state that choice in the methods, and check the common-gene count
+  that is logged. Tumour purity is only returned for `affymetrix`.
+- `quanTIseq` requires linear TPM and fails silently on log2 or count input.
+  Leave it off unless the matrix is known to be TPM.
+- Checkpoint transcript levels do not predict immune-checkpoint-inhibitor
+  response. The immune phenotype call is a documented heuristic, not a
+  validated classifier.
+- Every immune and stromal score is partly a purity estimate. Before claiming
+  that a signature "marks the stroma", test whether the association survives
+  adjustment for purity.
+- Report the panel-level result, not only the top adjusted p-value: the panels
+  overlap heavily, so significance among thirteen correlated tests is weak
+  evidence on its own.

@@ -88,6 +88,10 @@ knowledge <- list(
   epithelial = c("GENE10", "GENE12", "GENE14", "GENE16")
 )
 
+# Thresholds are relaxed for this toy cohort (100 genes, 3-gene knowledge
+# sets). The package defaults are gene_threshold = 0.001 and min_genes = 5,
+# which return empty gene sets on data this small. Real analyses should use the
+# defaults shown in SKILL.md and references/prognoser-api.md.
 result <- Prognoser(
   expression_accession_vector = datasets,
   knowledge_genesets = knowledge,

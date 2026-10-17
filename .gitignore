@@ -1,0 +1,13 @@
+# Analysis outputs written by the scripts
+output/
+
+# R session artefacts
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# Downloaded cohort objects
+*.rds
+*.Rdata
+*.rda
