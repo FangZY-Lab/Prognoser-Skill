@@ -3,11 +3,12 @@
 ## Installation
 
 ```r
-install.packages(c("survival", "RobustRankAggreg", "meta", "remotes"))
+install.packages(c("survival", "RobustRankAggreg", "meta", "igraph", "remotes"))
 remotes::install_github("FangZY-Lab/Prognoser")
 ```
 
-Dependencies: `R >= 3.5.0`, `survival`, `RobustRankAggreg`, `meta`, `stats`.
+Dependencies: `R >= 3.5.0`, `survival`, `RobustRankAggreg`, `meta`, `igraph`,
+`stats`.
 
 ## Function signature
 
@@ -20,12 +21,14 @@ Prognoser(
   gene_threshold = 0.001,
   min_genes = 5,
   similarity_threshold = 0.5,
-  linkage = c("ward.D", "ward.D2", "single", "complete",
-              "average", "mcquitty", "median", "centroid")
+  linkage = "ward.D",
+  de_redundant_basis = c("agglomeration", "igraph_component")
 )
 ```
 
-Pass one `linkage` value, for example `linkage = "ward.D"`.
+`linkage` takes exactly one of `"ward.D"`, `"ward.D2"`, `"single"`,
+`"complete"`, `"average"`, `"mcquitty"`, `"median"`, `"centroid"`; it is
+ignored when `de_redundant_basis = "igraph_component"`.
 
 ## Arguments
 
@@ -38,7 +41,8 @@ Pass one `linkage` value, for example `linkage = "ward.D"`.
 | `gene_threshold` | RRA p-value cutoff for the final gene pool | `0.001` |
 | `min_genes` | Minimum genes in a final clustered set | `5` |
 | `similarity_threshold` | Jaccard cutoff for merging redundant sets | `0.5` |
-| `linkage` | Hierarchical clustering method | must be one value |
+| `linkage` | Hierarchical clustering method (agglomeration only) | `"ward.D"` |
+| `de_redundant_basis` | `"agglomeration"` (hierarchical clustering) or `"igraph_component"` (connected components of the Jaccard graph) | `"agglomeration"` |
 
 ## Global environment contract
 
@@ -69,7 +73,9 @@ as another.
 7. Build signed effect matrices (`sign(log HR) * -log10(P)`).
 8. Rank genes with Robust Rank Aggregation.
 9. Intersect de novo genes with prior knowledge sets.
-10. Cluster by Jaccard similarity and return non-redundant sets.
+10. Resolve Jaccard similarity between gene sets, by hierarchical clustering
+    (`"agglomeration"`) or by the connected components of the similarity graph
+    (`"igraph_component"`), and return non-redundant sets.
 
 ## Output
 
@@ -80,7 +86,9 @@ result$combined_matrix_risk
 ```
 
 `combined_matrix_*` contain one column per dataset, plus `p_protection` or
-`p_risk` from RRA.
+`p_risk` from RRA. With `de_redundant_basis = "igraph_component"` the list
+also contains `network_protection` and `network_risk`, data frames with
+columns `from`, `to`, and `jaccard`.
 
 ## Saving results
 
@@ -103,5 +111,5 @@ cohorts.
 - Missing `_survival` object for an entry.
 - Survival `time`/`status` stored as character or factor.
 - Duplicate sample names in survival row names.
-- Passing the full `linkage` default vector.
+- Passing several `linkage` values at once.
 - `knowledge_genesets` left missing.

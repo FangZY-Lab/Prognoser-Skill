@@ -17,7 +17,8 @@ output_dir <- if (length(args) >= 2) args[[2]] else "output"
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
 load_prognoser_objects <- function(path) {
-  files <- list.files(path, pattern = "[.]rds$|[.]Rdata$", full.names = TRUE)
+  files <- list.files(path, pattern = "[.](rds|RData|Rdata|rda|Rda)$",
+                        full.names = TRUE)
   for (file in files) {
     if (grepl("[.]rds$", file)) {
       obj <- readRDS(file)
@@ -38,7 +39,10 @@ knowledge_genesets <- list(
   # Add prior gene sets here, e.g. immune = c("CD8A", "GZMB", "PRF1").
 )
 
-stopifnot(length(datasets) > 0)
+if (length(datasets) == 0) {
+  stop("No dataset names given: fill in `datasets` with the <Dataset>_<Endpoint> ",
+       "objects that are loaded in the global environment.", call. = FALSE)
+}
 
 result <- Prognoser(
   expression_accession_vector = datasets,
@@ -47,6 +51,8 @@ result <- Prognoser(
   gene_threshold = 0.001,
   min_genes = 5,
   similarity_threshold = 0.5,
+  # "agglomeration" (hierarchical clustering) or "igraph_component"
+  de_redundant_basis = "agglomeration",
   linkage = "ward.D"
 )
 

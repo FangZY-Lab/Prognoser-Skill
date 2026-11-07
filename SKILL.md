@@ -91,11 +91,12 @@ have those names.
 Install once:
 
 ```r
-install.packages(c("survival", "RobustRankAggreg", "meta", "remotes"))
+install.packages(c("survival", "RobustRankAggreg", "meta", "igraph", "remotes"))
 remotes::install_github("FangZY-Lab/Prognoser")
 ```
 
-Then run, passing a single `linkage` value:
+Then run (all arguments below except `expression_accession_vector` and
+`knowledge_genesets` have working defaults):
 
 ```r
 library(Prognoser)
@@ -107,6 +108,7 @@ result <- Prognoser(
   gene_threshold = 0.001,
   min_genes = 5,
   similarity_threshold = 0.5,
+  de_redundant_basis = "agglomeration",
   linkage = "ward.D"
 )
 ```
@@ -124,6 +126,8 @@ For a self-contained two-cohort example, run
 - `result$genesets`: final non-redundant `HRGS*` and `LRGS*` signatures.
 - `result$combined_matrix_protection`: signed effect matrix for protective genes.
 - `result$combined_matrix_risk`: signed effect matrix for risk genes.
+- `result$network_protection`, `result$network_risk`: the Jaccard edge lists,
+  present only when `de_redundant_basis = "igraph_component"`.
 
 Save with `saveRDS()` and write gene sets as tab-delimited GMT-compatible text
 when a downstream tool needs them.
@@ -134,7 +138,7 @@ when a downstream tool needs them.
   omit that dataset-endpoint instead of imputing events.
 - Verify sample overlap between expression columns and survival row names;
   report and drop unmatched samples.
-- Keep `linkage` a single character value; the default is a vector and will
-  fail if left unset.
+- `linkage` defaults to `"ward.D"` and must be one value, not the whole
+  vector of choices. It only applies to `de_redundant_basis = "agglomeration"`.
 - `meta` may emit non-fatal warnings during meta-analysis; preserve them rather
   than suppressing them unless they flood the log.

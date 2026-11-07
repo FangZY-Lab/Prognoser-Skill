@@ -16,6 +16,29 @@ if (!requireNamespace("GEOquery", quietly = TRUE)) {
 
 library(GEOquery)
 
+# GEOquery hard-codes a 120 s curl timeout in its internal downloadFile(),
+# which is far too short for the >150 MB GSE39582 series matrix. Replace that
+# helper for this session with the same code and a longer timeout.
+if (requireNamespace("curl", quietly = TRUE)) {
+  longer_download <- function(url, destfile, mode, quiet = TRUE) {
+    h <- curl::new_handle()
+    curl::handle_setheaders(h, `accept-encoding` = "gzip")
+    curl::handle_setopt(h, timeout_ms = 1800 * 1000)
+    ok <- tryCatch({
+      curl::curl_download(url, destfile, mode = mode, quiet = quiet, handle = h)
+      TRUE
+    }, error = function(e) { message(e); FALSE })
+    if (!ok) {
+      if (file.exists(destfile)) file.remove(destfile)
+      stop(sprintf("Failed to download %s!", destfile))
+    }
+    0L
+  }
+  try(assignInNamespace("downloadFile", longer_download, ns = "GEOquery"),
+      silent = TRUE)
+}
+options(timeout = max(1800, getOption("timeout")))
+
 output_dir <- "prognoser_real_data"
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
@@ -48,13 +71,33 @@ load_series <- function(accession) {
 surv_time <- function(pd, pattern) {
   col <- grep(pattern, colnames(pd), ignore.case = TRUE, value = TRUE)
   if (length(col) == 0) return(NULL)
-  as.numeric(sub("^[^:]*: *", "", pd[[col[1]]]))
+  raw <- trimws(sub("^[^:]*: *", "", pd[[col[1]]]))
+  num <- suppressWarnings(as.numeric(raw))
+  # values such as "45 months" carry a unit; keep the leading number
+  bad <- is.na(num) & !is.na(raw) & nzchar(raw)
+  if (any(bad)) {
+    num[bad] <- suppressWarnings(as.numeric(sub("^([0-9.]+).*$", "\\1", raw[bad])))
+  }
+  num
 }
 
 surv_event <- function(pd, pattern) {
   col <- grep(pattern, colnames(pd), ignore.case = TRUE, value = TRUE)
   if (length(col) == 0) return(NULL)
-  as.integer(sub("^[^:]*: *", "", pd[[col[1]]]) != 0)
+  raw <- trimws(sub("^[^:]*: *", "", pd[[col[1]]]))
+  num <- suppressWarnings(as.numeric(raw))
+  # some series code events as text ("Dead"/"Alive", "yes"/"no", ...)
+  bad <- is.na(num) & !is.na(raw) & nzchar(raw)
+  if (any(bad)) {
+    low <- tolower(raw[bad])
+    mapped <- rep(NA_integer_, length(low))
+    mapped[low %in% c("dead", "deceased", "yes", "y", "event",
+                      "recurrence", "recurred", "progressed", "true")] <- 1L
+    mapped[low %in% c("alive", "living", "no", "n", "censored",
+                      "none", "disease free", "false")] <- 0L
+    num[bad] <- mapped
+  }
+  as.integer(num != 0)
 }
 
 build_survival <- function(pd, time_pattern, event_pattern) {

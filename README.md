@@ -122,6 +122,7 @@ result <- Prognoser(
   gene_threshold = 0.001,
   min_genes = 5,
   similarity_threshold = 0.5,
+  de_redundant_basis = "agglomeration",
   linkage = "ward.D"
 )
 ```
@@ -133,13 +134,15 @@ result <- Prognoser(
 - `result$combined_matrix_protection`: signed effect matrix for protective
   genes.
 - `result$combined_matrix_risk`: signed effect matrix for risk genes.
+- `result$network_protection` / `result$network_risk`: Jaccard edge lists, only
+  with `de_redundant_basis = "igraph_component"`.
 
 ## Guardrails
 
 - Never fabricate survival time or event status.
 - Drop unmatched expression/survival samples and report the count.
-- Use one `linkage` value; the package default is a vector and errors if left
-  unchanged.
+- `linkage` defaults to `"ward.D"`; pass exactly one value, never the whole
+  vector of choices.
 - Keep multi-cohort expression matrices gene-aligned before meta-analysis.
 
 ## Related projects
