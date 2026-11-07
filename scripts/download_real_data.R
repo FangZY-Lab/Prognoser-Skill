@@ -3,7 +3,7 @@
 # Download and format two real colorectal cancer cohorts for Prognoser.
 #
 # Datasets:
-#   GSE39582 - 566 samples, OS and RFS
+#   GSE39582 - 585 samples (579 with OS, 577 with RFS)
 #   GSE17536 - 177 samples, OS, DFS, and DSS
 #
 # The script downloads series matrices and clinical annotations, maps probes
@@ -68,10 +68,41 @@ load_series <- function(accession) {
   list(expr = expr, pd = pd)
 }
 
+# GEO stores metadata as characteristics_ch1.N columns whose *values* carry
+# the field name ("overall survival follow-up time: 142.55"), so matching
+# the pattern against column names alone finds nothing.
+field_label <- function(x) {
+  x <- as.character(x)
+  x <- x[!is.na(x) & nzchar(trimws(x))]
+  if (!length(x)) return("")
+  first <- trimws(x[1])
+  if (grepl("^[^:]+:", first)) tolower(trimws(sub(":.*$", "", first))) else ""
+}
+
+# Index of the pData column whose name or value label matches `pattern`.
+# `kind` disambiguates time from event columns that share a word, such as
+# "overall survival follow-up time" and "overall_event (death ...)".
+field_index <- function(pd, pattern, kind = c("time", "event")) {
+  kind <- match.arg(kind)
+  labels <- vapply(colnames(pd), function(cn) {
+    tolower(paste(cn, field_label(pd[[cn]])))
+  }, character(1), USE.NAMES = FALSE)
+  # the parenthetical gloss ("dss_event (disease specific survival; ...)")
+  # mixes both vocabularies, so classify on the text before it
+  core <- sub("\\(.*$", "", labels)
+  hit <- grepl(pattern, labels, ignore.case = TRUE)
+  is_event <- grepl("event|status|death|dead|recurrence|recurred|progress", core)
+  is_time <- grepl("time|delay|follow|month|day|year|survival", core)
+  if (kind == "time") hit <- hit & is_time & !is_event
+  if (kind == "event") hit <- hit & is_event & !is_time
+  idx <- which(hit)
+  if (!length(idx)) NA_integer_ else idx[1]
+}
+
 surv_time <- function(pd, pattern) {
-  col <- grep(pattern, colnames(pd), ignore.case = TRUE, value = TRUE)
-  if (length(col) == 0) return(NULL)
-  raw <- trimws(sub("^[^:]*: *", "", pd[[col[1]]]))
+  i <- field_index(pd, pattern, "time")
+  if (is.na(i)) return(NULL)
+  raw <- trimws(sub("^[^:]*: *", "", as.character(pd[[i]])))
   num <- suppressWarnings(as.numeric(raw))
   # values such as "45 months" carry a unit; keep the leading number
   bad <- is.na(num) & !is.na(raw) & nzchar(raw)
@@ -82,19 +113,17 @@ surv_time <- function(pd, pattern) {
 }
 
 surv_event <- function(pd, pattern) {
-  col <- grep(pattern, colnames(pd), ignore.case = TRUE, value = TRUE)
-  if (length(col) == 0) return(NULL)
-  raw <- trimws(sub("^[^:]*: *", "", pd[[col[1]]]))
+  i <- field_index(pd, pattern, "event")
+  if (is.na(i)) return(NULL)
+  raw <- trimws(sub("^[^:]*: *", "", as.character(pd[[i]])))
   num <- suppressWarnings(as.numeric(raw))
   # some series code events as text ("Dead"/"Alive", "yes"/"no", ...)
   bad <- is.na(num) & !is.na(raw) & nzchar(raw)
   if (any(bad)) {
     low <- tolower(raw[bad])
     mapped <- rep(NA_integer_, length(low))
-    mapped[low %in% c("dead", "deceased", "yes", "y", "event",
-                      "recurrence", "recurred", "progressed", "true")] <- 1L
-    mapped[low %in% c("alive", "living", "no", "n", "censored",
-                      "none", "disease free", "false")] <- 0L
+    mapped[grepl("^(1|y|yes|true|dead|death|died|deceased|event|recurrence|recurred|progress|progressed)", low)] <- 1L
+    mapped[grepl("^(0|n|no|false|alive|living|censored|none|disease free)", low)] <- 0L
     num[bad] <- mapped
   }
   as.integer(num != 0)
@@ -114,13 +143,13 @@ build_survival <- function(pd, time_pattern, event_pattern) {
 datasets <- list(
   GSE39582 = list(
     endpoints = list(
-      OS = list("os.time|os_time|overall", "os.event|os_event|death"),
-      RFS = list("rfs.time|recurrence", "rfs.event|recurrence")
+      OS = list("os.time|os_time|os.delay|overall", "os.event|os_event|death"),
+      RFS = list("rfs.time|rfs.delay|recurrence", "rfs.event|recurrence")
     )
   ),
   GSE17536 = list(
     endpoints = list(
-      OS = list("os.time|os_time|overall", "os.event|os_event|death"),
+      OS = list("os.time|os_time|os.delay|overall", "os.event|os_event|death"),
       DFS = list("dfs.time|disease free", "dfs.event|disease free"),
       DSS = list("dss.time|disease specific", "dss.event|disease specific")
     )

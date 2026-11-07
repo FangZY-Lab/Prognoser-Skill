@@ -63,8 +63,8 @@ downloading or assembling survival endpoints.
 The skill ships with two validated real colorectal cohorts documented in
 [references/real-data.md](references/real-data.md):
 
-- GSE39582: 566 samples, OS and RFS.
-- GSE17536: 177 samples, OS, DFS, and DSS.
+- GSE39582: 585 samples (579 with OS, 577 with RFS), 23,520 genes.
+- GSE17536: 177 samples, OS, DFS, and DSS, 23,520 genes.
 
 Run [scripts/download_real_data.R](scripts/download_real_data.R) to reproduce
 the download and format real data for `Prognoser()`.

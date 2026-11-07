@@ -73,7 +73,7 @@ The skill is validated against two public colorectal cancer cohorts:
 
 | Dataset | Samples | Endpoints |
 | --- | --- | --- |
-| GSE39582 | 566 | OS, RFS |
+| GSE39582 | 585 (579 with OS, 577 with RFS) | OS, RFS |
 | GSE17536 | 177 | OS, DFS, DSS |
 
 Download and format them with:
