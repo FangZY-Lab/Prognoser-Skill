@@ -45,10 +45,35 @@ If `WGCNA::collapseRows` is unavailable, aggregate by mean:
 
 ```r
 expr <- rowsum(expr, group = symbol, reorder = FALSE) /
-        table(symbol)[symbol]
+        as.numeric(table(symbol)[symbol[!duplicated(symbol)]])
 ```
 
+The divisor must have one entry per *unique* symbol, in the order those symbols
+first appear, which is the order `rowsum(reorder = FALSE)` returns. Indexing the
+table by the full `symbol` vector gives one count per row instead, so the
+division is recycled against the wrong rows.
+
 Prefer mean for microarray, mean of log values for RNA-seq.
+
+## Multi-mapped symbols
+
+Some platforms annotate a probe with several symbols, separated by `///`:
+
+```text
+CARD16 /// CASP1
+```
+
+Keep the first symbol and drop the rest, so the probe is not silently lost and
+does not create a compound name that no gene set can match:
+
+```r
+symbol <- trimws(sub("\\s*///.*$", "", as.character(symbol)))
+```
+
+This happens after the rows are filtered to non-missing symbols and before
+the duplicate collapse, so several probes can still land on `CARD16` and be
+averaged together.
+
 
 ## Missing values
 

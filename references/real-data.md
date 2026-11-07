@@ -9,12 +9,14 @@ requires.
 
 | Dataset | GEO accession | Samples | Genes | Endpoints |
 | --- | --- | --- | --- | --- |
-| Marisa cohort | GSE39582 | 585 (579 with OS, 577 with RFS) | 23,520 | OS, RFS |
-| Smith cohort | GSE17536 | 177 | 23,520 | OS, DFS, DSS |
+| Marisa cohort | GSE39582 | 585 (579 with OS, 577 with RFS) | 22,880 | OS, RFS |
+| Smith cohort | GSE17536 | 177 | 22,880 | OS, DFS, DSS |
 
 Both matrices are Affymetrix HG-U133 Plus 2.0 data. Collapsing probes to HGNC
-symbols by mean gives 23,520 genes in both cohorts, an identical gene
-dimension that allows direct intersection.
+symbols by mean gives 22,880 genes in both cohorts, an identical gene
+dimension that allows direct intersection. Probes annotated with several
+symbols (`CARD16 /// CASP1`) contribute their first symbol and are then
+averaged with any other probe mapping to it.
 
 ## Download with GEOquery
 

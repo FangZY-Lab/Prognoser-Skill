@@ -58,6 +58,8 @@ load_series <- function(accession) {
   )
   if (length(symbol_col) > 0) {
     symbol <- fData(eset)[[symbol_col[1]]]
+    # multi-mapped probes look like "CARD16 /// CASP1"; keep the first symbol
+    symbol <- trimws(sub("\\s*///.*$", "", as.character(symbol)))
     keep <- !is.na(symbol) & symbol != ""
     expr <- expr[keep, , drop = FALSE]
     symbol <- symbol[keep]
